@@ -45,7 +45,27 @@ def extract_patch(img: Image.Image, center) -> Image.Image:
     #      (img.crop() fills any part of the region outside the image with black)
     #   2. Resize the region to (INPUT_SIZE, INPUT_SIZE) with Image.BILINEAR
     # ======================================================================
-    pass
+    
+    # Get the patch centre coordinates
+    cu, cv = center
+
+    # Calculate the crop boundaries
+    left = cu - HALF_PATCH
+    top = cv - HALF_PATCH
+    right = cu + HALF_PATCH
+    bottom = cv + HALF_PATCH
+
+    # Crop 128 x 128 region
+    patch = img.crop((left, top, right, bottom))
+
+    # Resize to 64 x 64
+    patch = patch.resize(
+        (INPUT_SIZE, INPUT_SIZE),
+        Image.BILINEAR
+    )
+
+    return patch
+
 
 
 class CorrectionDataset(PetNoseDataset):
@@ -82,7 +102,49 @@ class CorrectionDataset(PetNoseDataset):
         #   5. Return TF.normalize(TF.to_tensor(patch), MEAN, STD) and the
         #      normalized target (du, dv) / HALF_PATCH
         # ======================================================================
-        pass
+        
+        # Get image filename and true nose coordinates
+        name, u, v = self.samples[idx]
+
+        # Open the original image as RGB
+        img = Image.open(self.img_dir / name).convert("RGB")
+
+        # Generate a random patch centre near the nose
+        cu = round(u + random.uniform(-MAX_OFFSET, MAX_OFFSET))
+        cv = round(v + random.uniform(-MAX_OFFSET, MAX_OFFSET))
+
+        # Extract the patch
+        patch = extract_patch(img, (cu, cv))
+
+        # Calculate offset from patch centre to true nose
+        du = u - cu
+        dv = v - cv
+
+        # Apply augmentation if enabled
+        if self.augment:
+
+            # 50% chance of horizontal flip
+            if random.random() < 0.5:
+                patch = patch.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
+                # Horizontal flip reverses u offset
+                du = -du
+
+            # Apply colour jitter
+            patch = self.color_jitter(patch)
+
+        # Convert patch to normalized tensor
+        patch = TF.to_tensor(patch)
+        patch = TF.normalize(patch, MEAN, STD)
+
+        # Normalize offset targets
+        target = torch.tensor(
+            [du / HALF_PATCH, dv / HALF_PATCH],
+            dtype=torch.float32
+        )
+
+        return patch, target
+
 
 
 if __name__ == "__main__":
