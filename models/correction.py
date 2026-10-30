@@ -88,23 +88,33 @@ class CorrectionNet(nn.Module):
 
 
 
-class CorrectionNetModified(nn.Module):
+class CorrectionNetModified(CorrectionNet):
     """
-    Your modified CorrectionNet (Post-Lab Step 5). Same input (B, 3, 64, 64) and
-    output (B, 2) normalized offsets as CorrectionNet.
+    Modified CorrectionNet with dropout regularization.
+
+    Preserves the original convolutional architecture,
+    but adds dropout after the first fully connected layer.
     """
     def __init__(self):
         super(CorrectionNetModified, self).__init__()
-        # ======================================================================
-        # TODO [POST-LAB STEP 5]: Implement Your Modified Correction Model
-        # ======================================================================
-        pass
+
+        self.dropout = nn.Dropout(p=0.3)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # ======================================================================
-        # TODO [POST-LAB STEP 5]: Implement the Forward Pass
-        # ======================================================================
-        pass
+        # Convolution blocks
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        x = self.pool(F.relu(self.bn3(self.conv3(x))))
+        x = self.pool(F.relu(self.bn4(self.conv4(x))))
+
+        # Fully connected layers with dropout
+        x = torch.flatten(x, start_dim=1)
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = self.fc2(x)
+
+        return x
+
 
 
 if __name__ == "__main__":
