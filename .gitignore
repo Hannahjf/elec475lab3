@@ -1,0 +1,14 @@
+
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+
+# Large datasets and model weights
+data/
+checkpoints/
+predictions/
+
+# Local notebook and editor files
+.ipynb_checkpoints/
+.vscode/
